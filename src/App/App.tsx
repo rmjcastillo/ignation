@@ -1,4 +1,5 @@
-import { Button, TextField, List, ListItem, ListItemButton, ListItemText } from '@mui/material';
+import { Button, TextField, List, ListItem, ListItemButton, ListItemText, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import './app.css'
 import { useState, useEffect } from 'react';
 import type { Workspace } from '../workpace/Workspace';
@@ -21,6 +22,9 @@ export default function App(){
     });
     const [editingWorkspaceId, setEditingWorkspaceId] = useState<number | null>(null);
     const [editingWorkspaceName, setEditingWorkspaceName] = useState('');
+    const [hoveredWorkspaceId, setHoveredWorkspaceId] = useState<number | null>(null);
+    const [deleteWorkspaceConfirmOpen, setDeleteWorkspaceConfirmOpen] = useState(false);
+    const [workspaceToDelete, setWorkspaceToDelete] = useState<number | null>(null);
 
     useEffect(() => {
         localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces));
@@ -69,9 +73,12 @@ export default function App(){
     };
 
     const handleWorkspaceNameClick = (workspace: Workspace, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setEditingWorkspaceId(workspace.id);
-        setEditingWorkspaceName(workspace.name);
+        // Only allow editing if the workspace is already selected
+        if (selectedWorkspace && selectedWorkspace.id === workspace.id) {
+            e.stopPropagation();
+            setEditingWorkspaceId(workspace.id);
+            setEditingWorkspaceName(workspace.name);
+        }
     };
 
     const handleSaveWorkspaceName = () => {
@@ -105,6 +112,54 @@ export default function App(){
         } else if (e.key === 'Escape') {
             handleCancelWorkspaceEdit();
         }
+    };
+
+    const handleDeleteWorkspace = (workspaceId: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setWorkspaceToDelete(workspaceId);
+        setDeleteWorkspaceConfirmOpen(true);
+    };
+
+    const confirmDeleteWorkspace = () => {
+        if (workspaceToDelete !== null) {
+            // Remove workspace from list
+            setworkspaces(workspaces.filter(ws => ws.id !== workspaceToDelete));
+
+            // If deleted workspace was selected, clear selection
+            if (selectedWorkspace && selectedWorkspace.id === workspaceToDelete) {
+                setSelectedWorkspace(null);
+            }
+
+            // Delete all boards and cards associated with this workspace from localStorage
+            const boardsKey = 'kanban_boards';
+            const cardsKey = 'kanban_cards';
+
+            const savedBoards = localStorage.getItem(boardsKey);
+            if (savedBoards) {
+                const allBoards = JSON.parse(savedBoards);
+                const filteredBoards = allBoards.filter((board: any) =>
+                    board.workspaceId !== workspaceToDelete.toString()
+                );
+                localStorage.setItem(boardsKey, JSON.stringify(filteredBoards));
+            }
+
+            const savedCards = localStorage.getItem(cardsKey);
+            if (savedCards) {
+                const allCards = JSON.parse(savedCards);
+                const filteredCards = allCards.filter((card: any) =>
+                    card.workspaceId !== workspaceToDelete.toString()
+                );
+                localStorage.setItem(cardsKey, JSON.stringify(filteredCards));
+            }
+
+            setDeleteWorkspaceConfirmOpen(false);
+            setWorkspaceToDelete(null);
+        }
+    };
+
+    const cancelDeleteWorkspace = () => {
+        setDeleteWorkspaceConfirmOpen(false);
+        setWorkspaceToDelete(null);
     };
 
     return <>
@@ -160,6 +215,9 @@ export default function App(){
                     <ListItem
                         key={workspace.id}
                         disablePadding
+                        onMouseEnter={() => setHoveredWorkspaceId(workspace.id)}
+                        onMouseLeave={() => setHoveredWorkspaceId(null)}
+                        sx={{ position: 'relative' }}
                     >
                         {editingWorkspaceId === workspace.id ? (
                             <div style={{
@@ -186,30 +244,54 @@ export default function App(){
                                 />
                             </div>
                         ) : (
-                            <ListItemButton
-                                onClick={() => handleSelectWorkspace(workspace)}
-                                sx={{
-                                    color: 'white',
-                                    paddingRight: '1em',
-                                    justifyContent: 'flex-end',
-                                    backgroundColor: selectedWorkspace?.id === workspace.id ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                                    '&:hover': {
-                                        backgroundColor: 'rgba(255, 255, 255, 0.1)'
-                                    }
-                                }}
-                            >
-                                <ListItemText
-                                    primary={workspace.name}
-                                    onClick={(e) => handleWorkspaceNameClick(workspace, e)}
+                            <>
+                                <ListItemButton
+                                    onClick={() => handleSelectWorkspace(workspace)}
                                     sx={{
-                                        textAlign: 'right',
-                                        cursor: 'text',
+                                        color: 'white',
+                                        paddingRight: hoveredWorkspaceId === workspace.id ? '3em' : '1em',
+                                        justifyContent: 'flex-end',
+                                        backgroundColor: selectedWorkspace?.id === workspace.id ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                                        transition: 'padding-right 0.2s',
                                         '&:hover': {
-                                            opacity: 0.8
+                                            backgroundColor: 'rgba(255, 255, 255, 0.1)'
                                         }
                                     }}
-                                />
-                            </ListItemButton>
+                                >
+                                    <ListItemText
+                                        primary={workspace.name}
+                                        onClick={(e) => handleWorkspaceNameClick(workspace, e)}
+                                        sx={{
+                                            textAlign: 'right',
+                                            cursor: 'text',
+                                            '&:hover': {
+                                                opacity: 0.8
+                                            }
+                                        }}
+                                    />
+                                </ListItemButton>
+                                {hoveredWorkspaceId === workspace.id && !editingWorkspaceId && (
+                                    <IconButton
+                                        onClick={(e) => handleDeleteWorkspace(workspace.id, e)}
+                                        size="small"
+                                        sx={{
+                                            position: 'absolute',
+                                            right: '8px',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            padding: '4px',
+                                            color: 'white',
+                                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                            '&:hover': {
+                                                backgroundColor: '#ffebee',
+                                                color: '#d32f2f'
+                                            }
+                                        }}
+                                    >
+                                        <CloseIcon fontSize="small" />
+                                    </IconButton>
+                                )}
+                            </>
                         )}
                     </ListItem>
                 ))}
@@ -226,6 +308,28 @@ export default function App(){
                 </div>
             )}
         </div>
+
+        <Dialog
+            open={deleteWorkspaceConfirmOpen}
+            onClose={cancelDeleteWorkspace}
+        >
+            <DialogTitle>Delete Workspace?</DialogTitle>
+            <DialogContent>
+                <DialogContentText>
+                    Are you sure you want to delete this workspace? This will permanently delete all boards and cards in this workspace. This action cannot be undone.
+                </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={cancelDeleteWorkspace}>Cancel</Button>
+                <Button
+                    onClick={confirmDeleteWorkspace}
+                    color="error"
+                    variant="contained"
+                >
+                    Delete Workspace
+                </Button>
+            </DialogActions>
+        </Dialog>
     </div>
     </>;
 }
