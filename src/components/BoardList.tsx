@@ -118,6 +118,14 @@ export default function BoardList({ workspaceId }: BoardListProps) {
         setDraggedCardId(cardId);
     };
 
+    const handleUpdateCard = (cardId: string, title: string, details: string) => {
+        setCards(cards.map(card =>
+            card.id === cardId
+                ? { ...card, title, details }
+                : card
+        ));
+    };
+
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
     };
@@ -216,6 +224,7 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                                     key={card.id}
                                     card={card}
                                     onDragStart={handleDragStart}
+                                    onUpdate={handleUpdateCard}
                                 />
                             ))}
                         </Box>
