@@ -1,3 +1,5 @@
+export type CardStatus = 'todo' | 'doing' | 'done' | 'blocked' | '';
+
 export interface Card{
     id:string;
     boardId : string;
@@ -6,5 +8,8 @@ export interface Card{
     details: string ;
     parentId : string | null | undefined;
     dateCreated : Date;
-    dueDate : Date | null | undefined;   
+    dueDate : Date | null | undefined;
+    status: CardStatus;
+    customStatuses?: string[];
+    isMinimized?: boolean;
 }
