@@ -28,6 +28,8 @@ export default function BoardList({ workspaceId }: BoardListProps) {
     const [hoveredBoardId, setHoveredBoardId] = useState<string | null>(null);
     const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
     const [editingBoardTitle, setEditingBoardTitle] = useState('');
+    const [draggedBoardId, setDraggedBoardId] = useState<string | null>(null);
+    const [dragOverBoardId, setDragOverBoardId] = useState<string | null>(null);
     const currentWorkspaceRef = useRef(workspaceId);
     const isLoadingRef = useRef(false);
 
@@ -225,6 +227,50 @@ export default function BoardList({ workspaceId }: BoardListProps) {
         }
     };
 
+    const handleBoardDragStart = (e: React.DragEvent, boardId: string) => {
+        setDraggedBoardId(boardId);
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleBoardDragEnd = () => {
+        setDraggedBoardId(null);
+        setDragOverBoardId(null);
+    };
+
+    const handleBoardDragOver = (e: React.DragEvent, boardId: string) => {
+        e.preventDefault();
+        if (draggedBoardId && draggedBoardId !== boardId) {
+            setDragOverBoardId(boardId);
+        }
+    };
+
+    const handleBoardDrop = (e: React.DragEvent, targetBoardId: string) => {
+        e.preventDefault();
+
+        if (!draggedBoardId || draggedBoardId === targetBoardId) {
+            setDragOverBoardId(null);
+            return;
+        }
+
+        const draggedIndex = boards.findIndex(b => b.id === draggedBoardId);
+        const targetIndex = boards.findIndex(b => b.id === targetBoardId);
+
+        if (draggedIndex === -1 || targetIndex === -1) return;
+
+        const newBoards = [...boards];
+        const [draggedBoard] = newBoards.splice(draggedIndex, 1);
+        newBoards.splice(targetIndex, 0, draggedBoard);
+
+        // Update order property for all boards
+        const reorderedBoards = newBoards.map((board, index) => ({
+            ...board,
+            order: index + 1
+        }));
+
+        setBoards(reorderedBoards);
+        setDragOverBoardId(null);
+    };
+
     const handleDropOnCard = (draggedCardId: string, targetCardId: string) => {
         // Prevent dropping a card on its own descendant
         const descendants = getAllDescendants(draggedCardId);
@@ -350,8 +396,17 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                 {boards.map((board) => (
                     <Paper
                         key={board.id}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, board.id)}
+                        draggable={!editingBoardId}
+                        onDragStart={(e) => handleBoardDragStart(e, board.id)}
+                        onDragEnd={handleBoardDragEnd}
+                        onDragOver={(e) => {
+                            handleDragOver(e);
+                            handleBoardDragOver(e, board.id);
+                        }}
+                        onDrop={(e) => {
+                            handleBoardDrop(e, board.id);
+                            handleDrop(e, board.id);
+                        }}
                         onMouseEnter={() => setHoveredBoardId(board.id)}
                         onMouseLeave={() => setHoveredBoardId(null)}
                         sx={{
@@ -360,7 +415,11 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                             padding: '1em',
                             backgroundColor: '#f5f5f5',
                             minHeight: '400px',
-                            position: 'relative'
+                            position: 'relative',
+                            cursor: editingBoardId ? 'default' : 'move',
+                            opacity: draggedBoardId === board.id ? 0.5 : 1,
+                            border: dragOverBoardId === board.id ? '2px solid #1976d2' : '2px solid transparent',
+                            transition: 'opacity 0.2s, border 0.2s'
                         }}
                     >
                         <Box sx={{ position: 'relative', marginBottom: '1em' }}>
