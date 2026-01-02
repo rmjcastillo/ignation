@@ -1,14 +1,15 @@
 import { Button, TextField, List, ListItem, ListItemButton, ListItemText, IconButton, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import './app.css'
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Workspace } from '../workpace/Workspace';
-import BoardList from '../components/BoardList';
+import BoardList, { type BoardListRef } from '../components/BoardList';
 
 const WORKSPACES_STORAGE_KEY = 'kanban_workspaces';
 const SELECTED_WORKSPACE_STORAGE_KEY = 'kanban_selected_workspace';
 
 export default function App(){
+    const boardListRef = useRef<BoardListRef>(null);
 
     const [workspaces, setworkspaces] = useState<Workspace[]>(() => {
         const saved = localStorage.getItem(WORKSPACES_STORAGE_KEY);
@@ -301,10 +302,18 @@ export default function App(){
         <div className='app-playground'>
             {selectedWorkspace && (
                 <div style={{ padding: '2em' }}>
-                    <h2 style={{ margin: '0 0 1em 0', color: '#333' }}>
-                        {selectedWorkspace.name}
-                    </h2>
-                    <BoardList workspaceId={selectedWorkspace.id} />
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1em' }}>
+                        <h2 style={{ margin: '0', color: '#333' }}>
+                            {selectedWorkspace.name}
+                        </h2>
+                        <Button
+                            variant="contained"
+                            onClick={() => boardListRef.current?.openCreateBoardDialog()}
+                        >
+                            Add Board
+                        </Button>
+                    </div>
+                    <BoardList ref={boardListRef} workspaceId={selectedWorkspace.id} />
                 </div>
             )}
         </div>

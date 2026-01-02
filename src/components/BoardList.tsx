@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import { Button, TextField, Box, Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, IconButton } from '@mui/material';
+import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import { Button, TextField, Box, Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, IconButton, Popover } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import PaletteIcon from '@mui/icons-material/Palette';
 import type { Board } from '../models/Board';
 import type { Card, CardStatus } from '../models/Card';
 import CardItem from './CardItem';
@@ -12,7 +13,11 @@ interface BoardListProps {
     workspaceId: number;
 }
 
-export default function BoardList({ workspaceId }: BoardListProps) {
+export interface BoardListRef {
+    openCreateBoardDialog: () => void;
+}
+
+const BoardList = forwardRef<BoardListRef, BoardListProps>(({ workspaceId }, ref) => {
     const [boards, setBoards] = useState<Board[]>(() => {
         const saved = localStorage.getItem(BOARDS_STORAGE_KEY);
         const allBoards = saved ? JSON.parse(saved) : [];
@@ -37,6 +42,8 @@ export default function BoardList({ workspaceId }: BoardListProps) {
     const [editingBoardTitle, setEditingBoardTitle] = useState('');
     const [draggedBoardId, setDraggedBoardId] = useState<string | null>(null);
     const [dragOverBoardId, setDragOverBoardId] = useState<string | null>(null);
+    const [colorPickerAnchor, setColorPickerAnchor] = useState<HTMLElement | null>(null);
+    const [editingColorBoardId, setEditingColorBoardId] = useState<string | null>(null);
     const currentWorkspaceRef = useRef(workspaceId);
     const isLoadingRef = useRef(false);
 
@@ -240,6 +247,28 @@ export default function BoardList({ workspaceId }: BoardListProps) {
         }
     };
 
+    const handleOpenColorPicker = (e: React.MouseEvent<HTMLElement>, boardId: string) => {
+        e.stopPropagation();
+        setColorPickerAnchor(e.currentTarget);
+        setEditingColorBoardId(boardId);
+    };
+
+    const handleCloseColorPicker = () => {
+        setColorPickerAnchor(null);
+        setEditingColorBoardId(null);
+    };
+
+    const handleUpdateBoardColor = (color: string) => {
+        if (editingColorBoardId) {
+            setBoards(boards.map(board =>
+                board.id === editingColorBoardId
+                    ? { ...board, color }
+                    : board
+            ));
+        }
+        handleCloseColorPicker();
+    };
+
     const handleBoardDragStart = (e: React.DragEvent, boardId: string) => {
         setDraggedBoardId(boardId);
         e.dataTransfer.effectAllowed = 'move';
@@ -375,18 +404,13 @@ export default function BoardList({ workspaceId }: BoardListProps) {
         return elements;
     };
 
+    // Expose the create board function through ref
+    useImperativeHandle(ref, () => ({
+        openCreateBoardDialog: () => setIsCreatingBoard(true)
+    }));
+
     return (
         <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1em' }}>
-                <Button
-                    variant="contained"
-                    onClick={() => setIsCreatingBoard(true)}
-                >
-                    Add Board
-                </Button>
-            </Box>
-
-
             <Box sx={{ display: 'flex', gap: '1.5em', overflowX: 'auto', paddingBottom: '2em', alignItems: 'flex-start' }}>
                 {boards.map((board) => (
                     <Paper
@@ -442,7 +466,7 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                                         onClick={() => handleBoardTitleClick(board)}
                                         style={{
                                             margin: 0,
-                                            paddingRight: hoveredBoardId === board.id ? '32px' : '0',
+                                            paddingRight: hoveredBoardId === board.id ? '68px' : '0',
                                             cursor: 'text',
                                             padding: '8px',
                                             borderRadius: '4px',
@@ -455,23 +479,42 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                                         {board.title}
                                     </h3>
                                     {hoveredBoardId === board.id && !editingBoardId && (
-                                        <IconButton
-                                            onClick={() => handleDeleteBoard(board.id)}
-                                            size="small"
-                                            sx={{
-                                                position: 'absolute',
-                                                top: '4px',
-                                                right: '-4px',
-                                                padding: '4px',
-                                                backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                                                '&:hover': {
-                                                    backgroundColor: '#ffebee',
-                                                    color: '#d32f2f'
-                                                }
-                                            }}
-                                        >
-                                            <CloseIcon fontSize="small" />
-                                        </IconButton>
+                                        <>
+                                            <IconButton
+                                                onClick={(e) => handleOpenColorPicker(e, board.id)}
+                                                size="small"
+                                                sx={{
+                                                    position: 'absolute',
+                                                    top: '4px',
+                                                    right: '28px',
+                                                    padding: '4px',
+                                                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                                    '&:hover': {
+                                                        backgroundColor: '#e3f2fd',
+                                                        color: '#1976d2'
+                                                    }
+                                                }}
+                                            >
+                                                <PaletteIcon fontSize="small" />
+                                            </IconButton>
+                                            <IconButton
+                                                onClick={() => handleDeleteBoard(board.id)}
+                                                size="small"
+                                                sx={{
+                                                    position: 'absolute',
+                                                    top: '4px',
+                                                    right: '-4px',
+                                                    padding: '4px',
+                                                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                                    '&:hover': {
+                                                        backgroundColor: '#ffebee',
+                                                        color: '#d32f2f'
+                                                    }
+                                                }}
+                                            >
+                                                <CloseIcon fontSize="small" />
+                                            </IconButton>
+                                        </>
                                     )}
                                 </>
                             )}
@@ -652,6 +695,59 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <Popover
+                open={Boolean(colorPickerAnchor)}
+                anchorEl={colorPickerAnchor}
+                onClose={handleCloseColorPicker}
+                anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'right',
+                }}
+                transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                }}
+                slotProps={{
+                    paper: {
+                        sx: {
+                            marginTop: '4px'
+                        }
+                    }
+                }}
+            >
+                <Box sx={{ padding: '1em' }}>
+                    <DialogContentText sx={{ marginBottom: '0.5em', fontSize: '0.9em' }}>
+                        Select Board Color
+                    </DialogContentText>
+                    <Box sx={{ display: 'flex', gap: '0.5em', flexWrap: 'wrap', maxWidth: '200px' }}>
+                        {['#f5f5f5', '#ffebee', '#e3f2fd', '#e8f5e9', '#fff3e0', '#f3e5f5', '#fce4ec', '#e0f2f1'].map((color) => (
+                            <Box
+                                key={color}
+                                onClick={() => handleUpdateBoardColor(color)}
+                                sx={{
+                                    width: '40px',
+                                    height: '40px',
+                                    backgroundColor: color,
+                                    border: '2px solid #ccc',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    '&:hover': {
+                                        transform: 'scale(1.1)',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                                        border: '2px solid #1976d2'
+                                    }
+                                }}
+                            />
+                        ))}
+                    </Box>
+                </Box>
+            </Popover>
         </Box>
     );
-}
+});
+
+BoardList.displayName = 'BoardList';
+
+export default BoardList;
