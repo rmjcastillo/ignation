@@ -26,6 +26,8 @@ export default function BoardList({ workspaceId }: BoardListProps) {
     const [deleteBoardConfirmOpen, setDeleteBoardConfirmOpen] = useState(false);
     const [boardToDelete, setBoardToDelete] = useState<string | null>(null);
     const [hoveredBoardId, setHoveredBoardId] = useState<string | null>(null);
+    const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
+    const [editingBoardTitle, setEditingBoardTitle] = useState('');
     const currentWorkspaceRef = useRef(workspaceId);
     const isLoadingRef = useRef(false);
 
@@ -192,6 +194,37 @@ export default function BoardList({ workspaceId }: BoardListProps) {
         setBoardToDelete(null);
     };
 
+    const handleBoardTitleClick = (board: Board) => {
+        setEditingBoardId(board.id);
+        setEditingBoardTitle(board.title);
+    };
+
+    const handleSaveBoardTitle = () => {
+        if (editingBoardTitle.trim() && editingBoardId) {
+            setBoards(boards.map(board =>
+                board.id === editingBoardId
+                    ? { ...board, title: editingBoardTitle }
+                    : board
+            ));
+            setEditingBoardId(null);
+            setEditingBoardTitle('');
+        }
+    };
+
+    const handleCancelBoardEdit = () => {
+        setEditingBoardId(null);
+        setEditingBoardTitle('');
+    };
+
+    const handleBoardTitleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSaveBoardTitle();
+        } else if (e.key === 'Escape') {
+            handleCancelBoardEdit();
+        }
+    };
+
     const handleDropOnCard = (draggedCardId: string, targetCardId: string) => {
         // Prevent dropping a card on its own descendant
         const descendants = getAllDescendants(draggedCardId);
@@ -331,27 +364,61 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                         }}
                     >
                         <Box sx={{ position: 'relative', marginBottom: '1em' }}>
-                            <h3 style={{ margin: 0, paddingRight: hoveredBoardId === board.id ? '32px' : '0' }}>
-                                {board.title}
-                            </h3>
-                            {hoveredBoardId === board.id && (
-                                <IconButton
-                                    onClick={() => handleDeleteBoard(board.id)}
+                            {editingBoardId === board.id ? (
+                                <TextField
+                                    autoFocus
+                                    fullWidth
                                     size="small"
+                                    value={editingBoardTitle}
+                                    onChange={(e) => setEditingBoardTitle(e.target.value)}
+                                    onBlur={handleSaveBoardTitle}
+                                    onKeyDown={handleBoardTitleKeyDown}
                                     sx={{
-                                        position: 'absolute',
-                                        top: '-4px',
-                                        right: '-4px',
-                                        padding: '4px',
-                                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                                        '&:hover': {
-                                            backgroundColor: '#ffebee',
-                                            color: '#d32f2f'
+                                        '& .MuiInputBase-input': {
+                                            fontSize: '1.17em',
+                                            fontWeight: 'bold',
+                                            padding: '8px'
                                         }
                                     }}
-                                >
-                                    <CloseIcon fontSize="small" />
-                                </IconButton>
+                                />
+                            ) : (
+                                <>
+                                    <h3
+                                        onClick={() => handleBoardTitleClick(board)}
+                                        style={{
+                                            margin: 0,
+                                            paddingRight: hoveredBoardId === board.id ? '32px' : '0',
+                                            cursor: 'text',
+                                            padding: '8px',
+                                            borderRadius: '4px',
+                                            transition: 'background-color 0.2s',
+                                            backgroundColor: 'transparent'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
+                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                    >
+                                        {board.title}
+                                    </h3>
+                                    {hoveredBoardId === board.id && !editingBoardId && (
+                                        <IconButton
+                                            onClick={() => handleDeleteBoard(board.id)}
+                                            size="small"
+                                            sx={{
+                                                position: 'absolute',
+                                                top: '4px',
+                                                right: '-4px',
+                                                padding: '4px',
+                                                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                                '&:hover': {
+                                                    backgroundColor: '#ffebee',
+                                                    color: '#d32f2f'
+                                                }
+                                            }}
+                                        >
+                                            <CloseIcon fontSize="small" />
+                                        </IconButton>
+                                    )}
+                                </>
                             )}
                         </Box>
 
