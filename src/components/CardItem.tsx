@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Paper, TextField, Box, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import type { Card } from '../models/Card';
+import type { Card, CardStatus } from '../models/Card';
 
 interface CardItemProps {
     card: Card;
     onDragStart: (cardId: string) => void;
-    onUpdate: (cardId: string, title: string, details: string) => void;
+    onUpdate: (cardId: string, title: string, details: string, status: CardStatus) => void;
     onDropOnCard: (draggedCardId: string, targetCardId: string) => void;
     onDelete: (cardId: string) => void;
     depth?: number;
@@ -19,6 +19,69 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
     const [editDetails, setEditDetails] = useState(card.details);
     const [isDragOver, setIsDragOver] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
+    const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+    const statusDropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+                setIsStatusDropdownOpen(false);
+            }
+        };
+
+        if (isStatusDropdownOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isStatusDropdownOpen]);
+
+    const getStatusColor = (status: CardStatus): string => {
+        switch (status) {
+            case 'todo':
+                return '#E3F2FD'; // Light blue
+            case 'doing':
+                return '#FFF3E0'; // Light amber
+            case 'done':
+                return '#E8F5E9'; // Light green
+            case 'blocked':
+                return '#FFEBEE'; // Light red
+            default:
+                return 'white'; // Default white
+        }
+    };
+
+    const getStatusLabel = (status: CardStatus): string => {
+        switch (status) {
+            case 'todo':
+                return 'To Do';
+            case 'doing':
+                return 'Doing';
+            case 'done':
+                return 'Done';
+            case 'blocked':
+                return 'Blocked';
+            default:
+                return 'Set Status';
+        }
+    };
+
+    const getStatusPillColor = (status: CardStatus): string => {
+        switch (status) {
+            case 'todo':
+                return '#1976d2'; // Blue
+            case 'doing':
+                return '#f57c00'; // Orange
+            case 'done':
+                return '#388e3c'; // Green
+            case 'blocked':
+                return '#d32f2f'; // Red
+            default:
+                return '#757575'; // Gray
+        }
+    };
 
     const handleTitleClick = () => {
         setIsEditingTitle(true);
@@ -32,14 +95,24 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
 
     const handleTitleSave = () => {
         if (editTitle.trim()) {
-            onUpdate(card.id, editTitle, card.details);
+            onUpdate(card.id, editTitle, card.details, card.status);
             setIsEditingTitle(false);
         }
     };
 
     const handleDetailsSave = () => {
-        onUpdate(card.id, card.title, editDetails);
+        onUpdate(card.id, card.title, editDetails, card.status);
         setIsEditingDetails(false);
+    };
+
+    const handleStatusChange = (newStatus: CardStatus) => {
+        onUpdate(card.id, card.title, card.details, newStatus);
+        setIsStatusDropdownOpen(false);
+    };
+
+    const handleStatusPillClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsStatusDropdownOpen(!isStatusDropdownOpen);
     };
 
     const handleTitleKeyDown = (e: React.KeyboardEvent) => {
@@ -109,10 +182,10 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
                 padding: '0.75em',
                 marginBottom: '0.75em',
                 marginLeft: `${depth * 1.5}em`,
-                backgroundColor: 'white',
+                backgroundColor: getStatusColor(card.status),
                 cursor: isEditingTitle || isEditingDetails ? 'default' : 'grab',
                 border: isDragOver ? '2px solid #1976d2' : '1px solid transparent',
-                transition: 'border 0.2s',
+                transition: 'border 0.2s, background-color 0.2s',
                 position: 'relative',
                 '&:active': {
                     cursor: isEditingTitle || isEditingDetails ? 'default' : 'grabbing'
@@ -177,6 +250,7 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
                 )}
             </Box>
 
+
             {(card.details || isEditingDetails) && (
                 <Box>
                     {isEditingDetails ? (
@@ -236,6 +310,63 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
                     Add details...
                 </div>
             )}
+
+            <Box ref={statusDropdownRef} sx={{ marginTop: '0.75em', position: 'relative' }}>
+                <Box
+                    onClick={handleStatusPillClick}
+                    sx={{
+                        display: 'inline-block',
+                        padding: '4px 12px',
+                        borderRadius: '12px',
+                        backgroundColor: getStatusPillColor(card.status),
+                        color: 'white',
+                        fontSize: '0.75em',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        transition: 'opacity 0.2s',
+                        '&:hover': {
+                            opacity: 0.8
+                        }
+                    }}
+                >
+                    {getStatusLabel(card.status)}
+                </Box>
+
+                {isStatusDropdownOpen && (
+                    <Box
+                        sx={{
+                            position: 'absolute',
+                            bottom: '100%',
+                            left: 0,
+                            marginBottom: '4px',
+                            backgroundColor: 'white',
+                            border: '1px solid #ccc',
+                            borderRadius: '4px',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                            zIndex: 1000,
+                            minWidth: '120px'
+                        }}
+                    >
+                        {['', 'todo', 'doing', 'done', 'blocked'].map((status) => (
+                            <Box
+                                key={status}
+                                onClick={() => handleStatusChange(status as CardStatus)}
+                                sx={{
+                                    padding: '8px 12px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.85em',
+                                    '&:hover': {
+                                        backgroundColor: '#f5f5f5'
+                                    },
+                                    borderBottom: status === 'blocked' ? 'none' : '1px solid #eee'
+                                }}
+                            >
+                                {status === '' ? 'None' : getStatusLabel(status as CardStatus)}
+                            </Box>
+                        ))}
+                    </Box>
+                )}
+            </Box>
         </Paper>
     );
 }

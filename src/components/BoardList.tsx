@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button, TextField, Box, Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import type { Board } from '../models/Board';
-import type { Card } from '../models/Card';
+import type { Card, CardStatus } from '../models/Card';
 import CardItem from './CardItem';
 
 const BOARDS_STORAGE_KEY = 'kanban_boards';
@@ -123,7 +123,8 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                 details: cardDetails,
                 parentId: null,
                 dateCreated: new Date(),
-                dueDate: null
+                dueDate: null,
+                status: ''
             };
             setCards([...cards, newCard]);
             setCardTitle('');
@@ -136,10 +137,10 @@ export default function BoardList({ workspaceId }: BoardListProps) {
         setDraggedCardId(cardId);
     };
 
-    const handleUpdateCard = (cardId: string, title: string, details: string) => {
+    const handleUpdateCard = (cardId: string, title: string, details: string, status: CardStatus) => {
         setCards(cards.map(card =>
             card.id === cardId
-                ? { ...card, title, details }
+                ? { ...card, title, details, status }
                 : card
         ));
     };
