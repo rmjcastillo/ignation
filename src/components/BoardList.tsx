@@ -124,7 +124,8 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                 parentId: null,
                 dateCreated: new Date(),
                 dueDate: null,
-                status: ''
+                status: '',
+                isMinimized: true
             };
             setCards([...cards, newCard]);
             setCardTitle('');
@@ -137,10 +138,10 @@ export default function BoardList({ workspaceId }: BoardListProps) {
         setDraggedCardId(cardId);
     };
 
-    const handleUpdateCard = (cardId: string, title: string, details: string, status: CardStatus, customStatuses?: string[]) => {
+    const handleUpdateCard = (cardId: string, title: string, details: string, status: CardStatus, customStatuses?: string[], isMinimized?: boolean) => {
         setCards(cards.map(card =>
             card.id === cardId
-                ? { ...card, title, details, status, customStatuses }
+                ? { ...card, title, details, status, customStatuses, isMinimized }
                 : card
         ));
     };

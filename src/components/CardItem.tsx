@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { Paper, TextField, Box, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import type { Card, CardStatus } from '../models/Card';
 
 interface CardItemProps {
     card: Card;
     onDragStart: (cardId: string) => void;
-    onUpdate: (cardId: string, title: string, details: string, status: CardStatus, customStatuses?: string[]) => void;
+    onUpdate: (cardId: string, title: string, details: string, status: CardStatus, customStatuses?: string[], isMinimized?: boolean) => void;
     onDropOnCard: (draggedCardId: string, targetCardId: string) => void;
     onDelete: (cardId: string) => void;
     depth?: number;
@@ -22,6 +24,7 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
     const [isAddingCustomStatus, setIsAddingCustomStatus] = useState(false);
     const [newCustomStatus, setNewCustomStatus] = useState('');
+    const [isDetailsMinimized, setIsDetailsMinimized] = useState(card.isMinimized ?? true);
     const statusDropdownRef = useRef<HTMLDivElement>(null);
     const detailsRef = useRef<HTMLDivElement>(null);
     const customStatusInputRef = useRef<HTMLInputElement>(null);
@@ -99,18 +102,18 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
 
     const handleTitleSave = () => {
         if (editTitle.trim()) {
-            onUpdate(card.id, editTitle, card.details, card.status, card.customStatuses);
+            onUpdate(card.id, editTitle, card.details, card.status, card.customStatuses, isDetailsMinimized);
             setIsEditingTitle(false);
         }
     };
 
     const handleDetailsSave = () => {
-        onUpdate(card.id, card.title, editDetails, card.status, card.customStatuses);
+        onUpdate(card.id, card.title, editDetails, card.status, card.customStatuses, isDetailsMinimized);
         setIsEditingDetails(false);
     };
 
     const handleStatusChange = (newStatus: CardStatus) => {
-        onUpdate(card.id, card.title, card.details, newStatus, card.customStatuses);
+        onUpdate(card.id, card.title, card.details, newStatus, card.customStatuses, isDetailsMinimized);
         setIsStatusDropdownOpen(false);
     };
 
@@ -118,7 +121,7 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
         const trimmedStatus = newCustomStatus.trim();
         if (trimmedStatus && (!card.customStatuses || card.customStatuses.length < 5)) {
             const updatedCustomStatuses = [...(card.customStatuses || []), trimmedStatus];
-            onUpdate(card.id, card.title, card.details, card.status, updatedCustomStatuses);
+            onUpdate(card.id, card.title, card.details, card.status, updatedCustomStatuses, isDetailsMinimized);
             setNewCustomStatus('');
             setIsAddingCustomStatus(false);
         }
@@ -127,7 +130,7 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
     const handleRemoveCustomStatus = (index: number) => {
         const updatedCustomStatuses = [...(card.customStatuses || [])];
         updatedCustomStatuses.splice(index, 1);
-        onUpdate(card.id, card.title, card.details, card.status, updatedCustomStatuses);
+        onUpdate(card.id, card.title, card.details, card.status, updatedCustomStatuses, isDetailsMinimized);
     };
 
     const handleCustomStatusKeyDown = (e: React.KeyboardEvent) => {
@@ -203,6 +206,13 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
         onDelete(card.id);
     };
 
+    const handleToggleDetails = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const newMinimizedState = !isDetailsMinimized;
+        setIsDetailsMinimized(newMinimizedState);
+        onUpdate(card.id, card.title, card.details, card.status, card.customStatuses, newMinimizedState);
+    };
+
     return (
         <Paper
             draggable={!isEditingTitle && !isEditingDetails}
@@ -214,15 +224,15 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
             onMouseLeave={() => setIsHovered(false)}
             sx={{
                 padding: '0.75em',
-                paddingBottom: '6em',
+                paddingBottom: isDetailsMinimized ? '3em' : '6em',
                 marginBottom: '0.75em',
                 marginLeft: `${depth * 1.5}em`,
                 backgroundColor: getStatusColor(card.status),
                 cursor: isEditingTitle || isEditingDetails ? 'default' : 'grab',
                 border: isDragOver ? '2px solid #1976d2' : '1px solid transparent',
-                transition: 'border 0.2s, background-color 0.2s',
+                transition: 'all 0.2s',
                 position: 'relative',
-                minHeight: '120px',
+                minHeight: isDetailsMinimized ? '60px' : '120px',
                 maxHeight: '500px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -260,7 +270,12 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
                 overflowX: 'hidden',
                 minHeight: 0
             }}>
-                <Box sx={{ marginBottom: card.details ? '0.5em' : 0 }}>
+                <Box sx={{
+                    marginBottom: card.details ? '0.5em' : 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                }}>
                 {isEditingTitle ? (
                     <TextField
                         autoFocus
@@ -279,27 +294,42 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
                         }}
                     />
                 ) : (
-                    <div
-                        onClick={handleTitleClick}
-                        style={{
-                            fontWeight: 'bold',
-                            cursor: 'text',
-                            padding: '4px',
-                            borderRadius: '4px',
-                            transition: 'background-color 0.2s',
-                            wordWrap: 'break-word',
-                            overflowWrap: 'break-word',
-                            whiteSpace: 'normal'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                        {card.title}
-                    </div>
+                    <>
+                        <IconButton
+                            onClick={handleToggleDetails}
+                            size="small"
+                            sx={{
+                                padding: '2px',
+                                '&:hover': {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                                }
+                            }}
+                        >
+                            {isDetailsMinimized ? <ExpandMoreIcon fontSize="small" /> : <ExpandLessIcon fontSize="small" />}
+                        </IconButton>
+                        <div
+                            onClick={handleTitleClick}
+                            style={{
+                                fontWeight: 'bold',
+                                cursor: 'text',
+                                padding: '4px',
+                                borderRadius: '4px',
+                                transition: 'background-color 0.2s',
+                                wordWrap: 'break-word',
+                                overflowWrap: 'break-word',
+                                whiteSpace: 'normal',
+                                flex: 1
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                            {card.title}
+                        </div>
+                    </>
                 )}
                 </Box>
 
-                {(card.details || isEditingDetails) && (
+                {!isDetailsMinimized && (card.details || isEditingDetails) && (
                     <Box>
                         {isEditingDetails ? (
                             <>
@@ -358,7 +388,7 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
                     </Box>
                 )}
 
-                {!card.details && !isEditingDetails && (
+                {!isDetailsMinimized && !card.details && !isEditingDetails && (
                     <div
                         onClick={handleDetailsClick}
                         onMouseDown={(e) => e.stopPropagation()}

@@ -11,4 +11,5 @@ export interface Card{
     dueDate : Date | null | undefined;
     status: CardStatus;
     customStatuses?: string[];
+    isMinimized?: boolean;
 }
