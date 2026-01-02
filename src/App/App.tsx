@@ -19,6 +19,8 @@ export default function App(){
         const saved = localStorage.getItem(SELECTED_WORKSPACE_STORAGE_KEY);
         return saved ? JSON.parse(saved) : null;
     });
+    const [editingWorkspaceId, setEditingWorkspaceId] = useState<number | null>(null);
+    const [editingWorkspaceName, setEditingWorkspaceName] = useState('');
 
     useEffect(() => {
         localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces));
@@ -63,6 +65,45 @@ export default function App(){
             handleSaveWorkspace();
         } else if (e.key === 'Escape') {
             handleCancelCreate();
+        }
+    };
+
+    const handleWorkspaceNameClick = (workspace: Workspace, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEditingWorkspaceId(workspace.id);
+        setEditingWorkspaceName(workspace.name);
+    };
+
+    const handleSaveWorkspaceName = () => {
+        if (editingWorkspaceName.trim() && editingWorkspaceId !== null) {
+            const updatedWorkspaces = workspaces.map(ws =>
+                ws.id === editingWorkspaceId
+                    ? { ...ws, name: editingWorkspaceName }
+                    : ws
+            );
+            setworkspaces(updatedWorkspaces);
+
+            // Update selected workspace if it's the one being edited
+            if (selectedWorkspace && selectedWorkspace.id === editingWorkspaceId) {
+                setSelectedWorkspace({ ...selectedWorkspace, name: editingWorkspaceName });
+            }
+
+            setEditingWorkspaceId(null);
+            setEditingWorkspaceName('');
+        }
+    };
+
+    const handleCancelWorkspaceEdit = () => {
+        setEditingWorkspaceId(null);
+        setEditingWorkspaceName('');
+    };
+
+    const handleWorkspaceNameKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSaveWorkspaceName();
+        } else if (e.key === 'Escape') {
+            handleCancelWorkspaceEdit();
         }
     };
 
@@ -120,23 +161,56 @@ export default function App(){
                         key={workspace.id}
                         disablePadding
                     >
-                        <ListItemButton
-                            onClick={() => handleSelectWorkspace(workspace)}
-                            sx={{
-                                color: 'white',
-                                paddingRight: '1em',
-                                justifyContent: 'flex-end',
-                                backgroundColor: selectedWorkspace?.id === workspace.id ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                                '&:hover': {
-                                    backgroundColor: 'rgba(255, 255, 255, 0.1)'
-                                }
-                            }}
-                        >
-                            <ListItemText
-                                primary={workspace.name}
-                                sx={{ textAlign: 'right' }}
-                            />
-                        </ListItemButton>
+                        {editingWorkspaceId === workspace.id ? (
+                            <div style={{
+                                width: '100%',
+                                padding: '8px 1em 8px 8px',
+                                display: 'flex',
+                                justifyContent: 'flex-end'
+                            }}>
+                                <TextField
+                                    autoFocus
+                                    size="small"
+                                    value={editingWorkspaceName}
+                                    onChange={(e) => setEditingWorkspaceName(e.target.value)}
+                                    onBlur={handleSaveWorkspaceName}
+                                    onKeyDown={handleWorkspaceNameKeyDown}
+                                    sx={{
+                                        backgroundColor: 'white',
+                                        borderRadius: '4px',
+                                        '& .MuiInputBase-input': {
+                                            textAlign: 'right',
+                                            padding: '6px 8px'
+                                        }
+                                    }}
+                                />
+                            </div>
+                        ) : (
+                            <ListItemButton
+                                onClick={() => handleSelectWorkspace(workspace)}
+                                sx={{
+                                    color: 'white',
+                                    paddingRight: '1em',
+                                    justifyContent: 'flex-end',
+                                    backgroundColor: selectedWorkspace?.id === workspace.id ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                                    }
+                                }}
+                            >
+                                <ListItemText
+                                    primary={workspace.name}
+                                    onClick={(e) => handleWorkspaceNameClick(workspace, e)}
+                                    sx={{
+                                        textAlign: 'right',
+                                        cursor: 'text',
+                                        '&:hover': {
+                                            opacity: 0.8
+                                        }
+                                    }}
+                                />
+                            </ListItemButton>
+                        )}
                     </ListItem>
                 ))}
             </List>
