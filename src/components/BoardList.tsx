@@ -137,10 +137,10 @@ export default function BoardList({ workspaceId }: BoardListProps) {
         setDraggedCardId(cardId);
     };
 
-    const handleUpdateCard = (cardId: string, title: string, details: string, status: CardStatus) => {
+    const handleUpdateCard = (cardId: string, title: string, details: string, status: CardStatus, customStatuses?: string[]) => {
         setCards(cards.map(card =>
             card.id === cardId
-                ? { ...card, title, details, status }
+                ? { ...card, title, details, status, customStatuses }
                 : card
         ));
     };

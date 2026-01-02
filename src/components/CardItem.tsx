@@ -6,7 +6,7 @@ import type { Card, CardStatus } from '../models/Card';
 interface CardItemProps {
     card: Card;
     onDragStart: (cardId: string) => void;
-    onUpdate: (cardId: string, title: string, details: string, status: CardStatus) => void;
+    onUpdate: (cardId: string, title: string, details: string, status: CardStatus, customStatuses?: string[]) => void;
     onDropOnCard: (draggedCardId: string, targetCardId: string) => void;
     onDelete: (cardId: string) => void;
     depth?: number;
@@ -20,8 +20,11 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
     const [isDragOver, setIsDragOver] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+    const [isAddingCustomStatus, setIsAddingCustomStatus] = useState(false);
+    const [newCustomStatus, setNewCustomStatus] = useState('');
     const statusDropdownRef = useRef<HTMLDivElement>(null);
     const detailsRef = useRef<HTMLDivElement>(null);
+    const customStatusInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -96,19 +99,45 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
 
     const handleTitleSave = () => {
         if (editTitle.trim()) {
-            onUpdate(card.id, editTitle, card.details, card.status);
+            onUpdate(card.id, editTitle, card.details, card.status, card.customStatuses);
             setIsEditingTitle(false);
         }
     };
 
     const handleDetailsSave = () => {
-        onUpdate(card.id, card.title, editDetails, card.status);
+        onUpdate(card.id, card.title, editDetails, card.status, card.customStatuses);
         setIsEditingDetails(false);
     };
 
     const handleStatusChange = (newStatus: CardStatus) => {
-        onUpdate(card.id, card.title, card.details, newStatus);
+        onUpdate(card.id, card.title, card.details, newStatus, card.customStatuses);
         setIsStatusDropdownOpen(false);
+    };
+
+    const handleAddCustomStatus = () => {
+        const trimmedStatus = newCustomStatus.trim();
+        if (trimmedStatus && (!card.customStatuses || card.customStatuses.length < 5)) {
+            const updatedCustomStatuses = [...(card.customStatuses || []), trimmedStatus];
+            onUpdate(card.id, card.title, card.details, card.status, updatedCustomStatuses);
+            setNewCustomStatus('');
+            setIsAddingCustomStatus(false);
+        }
+    };
+
+    const handleRemoveCustomStatus = (index: number) => {
+        const updatedCustomStatuses = [...(card.customStatuses || [])];
+        updatedCustomStatuses.splice(index, 1);
+        onUpdate(card.id, card.title, card.details, card.status, updatedCustomStatuses);
+    };
+
+    const handleCustomStatusKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleAddCustomStatus();
+        } else if (e.key === 'Escape') {
+            setIsAddingCustomStatus(false);
+            setNewCustomStatus('');
+        }
     };
 
     const handleStatusPillClick = (e: React.MouseEvent) => {
@@ -185,7 +214,7 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
             onMouseLeave={() => setIsHovered(false)}
             sx={{
                 padding: '0.75em',
-                paddingBottom: '2.5em',
+                paddingBottom: '6em',
                 marginBottom: '0.75em',
                 marginLeft: `${depth * 1.5}em`,
                 backgroundColor: getStatusColor(card.status),
@@ -350,61 +379,162 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
                 )}
             </Box>
 
-            <Box ref={statusDropdownRef} sx={{ position: 'absolute', bottom: '8px', right: '8px' }}>
-                <Box
-                    onClick={handleStatusPillClick}
-                    sx={{
-                        display: 'inline-block',
-                        padding: '4px 12px',
-                        borderRadius: '12px',
-                        backgroundColor: getStatusPillColor(card.status),
-                        color: 'white',
-                        fontSize: '0.75em',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        transition: 'opacity 0.2s',
-                        '&:hover': {
-                            opacity: 0.8
-                        }
-                    }}
-                >
-                    {getStatusLabel(card.status)}
-                </Box>
-
-                {isStatusDropdownOpen && (
+            <Box sx={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
+                {/* Custom Status Pills */}
+                {card.customStatuses && card.customStatuses.map((customStatus, index) => (
                     <Box
+                        key={index}
                         sx={{
-                            position: 'absolute',
-                            bottom: '100%',
-                            right: 0,
-                            marginBottom: '4px',
-                            backgroundColor: 'white',
-                            border: '1px solid #ccc',
-                            borderRadius: '4px',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                            zIndex: 1000,
-                            minWidth: '120px'
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 8px',
+                            borderRadius: '12px',
+                            backgroundColor: '#9e9e9e',
+                            color: 'white',
+                            fontSize: '0.7em',
+                            fontWeight: 'bold',
+                            cursor: 'default',
+                            '& .delete-icon': {
+                                opacity: 0,
+                                transition: 'opacity 0.2s'
+                            },
+                            '&:hover .delete-icon': {
+                                opacity: 1
+                            }
                         }}
                     >
-                        {['', 'todo', 'doing', 'done', 'blocked'].map((status) => (
-                            <Box
-                                key={status}
-                                onClick={() => handleStatusChange(status as CardStatus)}
+                        <span>{customStatus}</span>
+                        <CloseIcon
+                            className="delete-icon"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveCustomStatus(index);
+                            }}
+                            sx={{
+                                fontSize: '0.9em',
+                                cursor: 'pointer',
+                                '&:hover': {
+                                    opacity: 0.7
+                                }
+                            }}
+                        />
+                    </Box>
+                ))}
+
+                {/* Add Custom Status Button/Input */}
+                {(!card.customStatuses || card.customStatuses.length < 5) && (
+                    <>
+                        {isAddingCustomStatus ? (
+                            <TextField
+                                inputRef={customStatusInputRef}
+                                autoFocus
+                                size="small"
+                                value={newCustomStatus}
+                                onChange={(e) => setNewCustomStatus(e.target.value)}
+                                onBlur={handleAddCustomStatus}
+                                onKeyDown={handleCustomStatusKeyDown}
+                                placeholder="Status name"
+                                inputProps={{ maxLength: 10 }}
                                 sx={{
-                                    padding: '8px 12px',
-                                    cursor: 'pointer',
-                                    fontSize: '0.85em',
-                                    '&:hover': {
-                                        backgroundColor: '#f5f5f5'
+                                    '& .MuiInputBase-root': {
+                                        fontSize: '0.7em',
+                                        height: '24px'
                                     },
-                                    borderBottom: status === 'blocked' ? 'none' : '1px solid #eee'
+                                    '& .MuiInputBase-input': {
+                                        padding: '4px 8px'
+                                    },
+                                    width: '80px'
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        ) : (
+                            <Box
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsAddingCustomStatus(true);
+                                }}
+                                sx={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '24px',
+                                    height: '24px',
+                                    borderRadius: '12px',
+                                    backgroundColor: '#e0e0e0',
+                                    color: '#666',
+                                    fontSize: '1em',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                    transition: 'background-color 0.2s',
+                                    '&:hover': {
+                                        backgroundColor: '#bdbdbd'
+                                    }
                                 }}
                             >
-                                {status === '' ? 'None' : getStatusLabel(status as CardStatus)}
+                                +
                             </Box>
-                        ))}
-                    </Box>
+                        )}
+                    </>
                 )}
+
+                {/* Main Status Pill */}
+                <Box ref={statusDropdownRef}>
+                    <Box
+                        onClick={handleStatusPillClick}
+                        sx={{
+                            display: 'inline-block',
+                            padding: '4px 12px',
+                            borderRadius: '12px',
+                            backgroundColor: getStatusPillColor(card.status),
+                            color: 'white',
+                            fontSize: '0.75em',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            transition: 'opacity 0.2s',
+                            '&:hover': {
+                                opacity: 0.8
+                            }
+                        }}
+                    >
+                        {getStatusLabel(card.status)}
+                    </Box>
+
+                    {isStatusDropdownOpen && (
+                        <Box
+                            sx={{
+                                position: 'absolute',
+                                bottom: '100%',
+                                right: 0,
+                                marginBottom: '4px',
+                                backgroundColor: 'white',
+                                border: '1px solid #ccc',
+                                borderRadius: '4px',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                zIndex: 1000,
+                                minWidth: '120px'
+                            }}
+                        >
+                            {['', 'todo', 'doing', 'done', 'blocked'].map((status) => (
+                                <Box
+                                    key={status}
+                                    onClick={() => handleStatusChange(status as CardStatus)}
+                                    sx={{
+                                        padding: '8px 12px',
+                                        cursor: 'pointer',
+                                        fontSize: '0.85em',
+                                        '&:hover': {
+                                            backgroundColor: '#f5f5f5'
+                                        },
+                                        borderBottom: status === 'blocked' ? 'none' : '1px solid #eee'
+                                    }}
+                                >
+                                    {status === '' ? 'None' : getStatusLabel(status as CardStatus)}
+                                </Box>
+                            ))}
+                        </Box>
+                    )}
+                </Box>
             </Box>
         </Paper>
     );

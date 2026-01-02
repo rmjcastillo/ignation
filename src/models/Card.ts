@@ -10,4 +10,5 @@ export interface Card{
     dateCreated : Date;
     dueDate : Date | null | undefined;
     status: CardStatus;
+    customStatuses?: string[];
 }
