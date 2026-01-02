@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Paper, TextField, Box, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
+import { Paper, TextField, Box, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import type { Card, CardStatus } from '../models/Card';
 
@@ -20,7 +20,6 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
     const [isDragOver, setIsDragOver] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const statusDropdownRef = useRef<HTMLDivElement>(null);
     const detailsRef = useRef<HTMLDivElement>(null);
 
@@ -117,21 +116,8 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
         setIsStatusDropdownOpen(!isStatusDropdownOpen);
     };
 
-    const handleDetailsAreaClick = (e: React.MouseEvent) => {
-        if (!isEditingTitle && !isEditingDetails && card.details) {
-            e.stopPropagation();
-            setIsModalOpen(true);
-        }
-    };
-
     const handleDetailsMouseDown = (e: React.MouseEvent) => {
-        if (card.details) {
-            e.stopPropagation();
-        }
-    };
-
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
+        e.stopPropagation();
     };
 
     const handleTitleKeyDown = (e: React.KeyboardEvent) => {
@@ -189,7 +175,6 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
     };
 
     return (
-        <>
         <Paper
             draggable={!isEditingTitle && !isEditingDetails}
             onDragStart={handleDragStartInternal}
@@ -256,6 +241,7 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
                         onChange={(e) => setEditTitle(e.target.value)}
                         onBlur={handleTitleSave}
                         onKeyDown={handleTitleKeyDown}
+                        inputProps={{ maxLength: 50 }}
                         sx={{
                             '& .MuiInputBase-input': {
                                 fontWeight: 'bold',
@@ -271,7 +257,10 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
                             cursor: 'text',
                             padding: '4px',
                             borderRadius: '4px',
-                            transition: 'background-color 0.2s'
+                            transition: 'background-color 0.2s',
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                            whiteSpace: 'normal'
                         }}
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -284,34 +273,46 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
                 {(card.details || isEditingDetails) && (
                     <Box>
                         {isEditingDetails ? (
-                            <TextField
-                                autoFocus
-                                fullWidth
-                                size="small"
-                                multiline
-                                rows={2}
-                                value={editDetails}
-                                onChange={(e) => setEditDetails(e.target.value)}
-                                onBlur={handleDetailsSave}
-                                onKeyDown={handleDetailsKeyDown}
-                                placeholder="Add details..."
-                                sx={{
-                                    '& .MuiInputBase-input': {
-                                        fontSize: '0.9em',
-                                        padding: '4px'
-                                    }
-                                }}
-                            />
+                            <>
+                                <TextField
+                                    autoFocus
+                                    fullWidth
+                                    size="small"
+                                    multiline
+                                    rows={2}
+                                    value={editDetails}
+                                    onChange={(e) => setEditDetails(e.target.value)}
+                                    onBlur={handleDetailsSave}
+                                    onKeyDown={handleDetailsKeyDown}
+                                    placeholder="Add details..."
+                                    inputProps={{ maxLength: 300 }}
+                                    sx={{
+                                        '& .MuiInputBase-input': {
+                                            fontSize: '0.9em',
+                                            padding: '4px'
+                                        }
+                                    }}
+                                />
+                                <Box
+                                    sx={{
+                                        fontSize: '0.75em',
+                                        color: editDetails.length >= 300 ? '#d32f2f' : '#999',
+                                        textAlign: 'right',
+                                        marginTop: '4px'
+                                    }}
+                                >
+                                    {editDetails.length}/300 characters
+                                </Box>
+                            </>
                         ) : (
                             <div
                                 ref={detailsRef}
-                                onClick={handleDetailsAreaClick}
-                                onDoubleClick={handleDetailsClick}
+                                onClick={handleDetailsClick}
                                 onMouseDown={handleDetailsMouseDown}
                                 style={{
                                     fontSize: '0.9em',
                                     color: '#666',
-                                    cursor: card.details ? 'pointer' : 'text',
+                                    cursor: 'text',
                                     padding: '4px',
                                     borderRadius: '4px',
                                     transition: 'background-color 0.2s',
@@ -406,54 +407,5 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
                 )}
             </Box>
         </Paper>
-
-        <Dialog
-            open={isModalOpen}
-            onClose={handleCloseModal}
-            maxWidth="md"
-            fullWidth
-        >
-            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>{card.title}</span>
-                <IconButton
-                    onClick={handleCloseModal}
-                    size="small"
-                    sx={{ marginLeft: '1em' }}
-                >
-                    <CloseIcon />
-                </IconButton>
-            </DialogTitle>
-            <DialogContent>
-                <Box sx={{
-                    fontSize: '0.95em',
-                    color: '#666',
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: 1.6
-                }}>
-                    {card.details}
-                </Box>
-            </DialogContent>
-            <DialogActions>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', padding: '0 8px' }}>
-                    <Box
-                        sx={{
-                            display: 'inline-block',
-                            padding: '4px 12px',
-                            borderRadius: '12px',
-                            backgroundColor: getStatusPillColor(card.status),
-                            color: 'white',
-                            fontSize: '0.75em',
-                            fontWeight: 'bold'
-                        }}
-                    >
-                        {getStatusLabel(card.status)}
-                    </Box>
-                    <Button onClick={handleCloseModal} variant="contained">
-                        Close
-                    </Button>
-                </Box>
-            </DialogActions>
-        </Dialog>
-        </>
     );
 }
