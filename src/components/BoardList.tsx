@@ -23,6 +23,7 @@ export default function BoardList({ workspaceId }: BoardListProps) {
     const [cards, setCards] = useState<Card[]>([]);
     const [isCreatingBoard, setIsCreatingBoard] = useState(false);
     const [boardTitle, setBoardTitle] = useState('');
+    const [boardColor, setBoardColor] = useState('#f5f5f5');
     const [creatingCardForBoard, setCreatingCardForBoard] = useState<string | null>(null);
     const [cardTitle, setCardTitle] = useState('');
     const [cardDetails, setCardDetails] = useState('');
@@ -105,10 +106,12 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                 workspaceId: workspaceId.toString(),
                 title: boardTitle,
                 description: '',
-                order: boards.length + 1
+                order: boards.length + 1,
+                color: boardColor
             };
             setBoards([...boards, newBoard]);
             setBoardTitle('');
+            setBoardColor('#f5f5f5');
             setIsCreatingBoard(false);
         }
     };
@@ -138,10 +141,10 @@ export default function BoardList({ workspaceId }: BoardListProps) {
         setDraggedCardId(cardId);
     };
 
-    const handleUpdateCard = (cardId: string, title: string, details: string, status: CardStatus, customStatuses?: string[], isMinimized?: boolean) => {
+    const handleUpdateCard = (cardId: string, title: string, details: string, status: CardStatus, customStatuses?: string[], isMinimized?: boolean, dueDate?: Date | null) => {
         setCards(cards.map(card =>
             card.id === cardId
-                ? { ...card, title, details, status, customStatuses, isMinimized }
+                ? { ...card, title, details, status, customStatuses, isMinimized, dueDate }
                 : card
         ));
     };
@@ -374,39 +377,15 @@ export default function BoardList({ workspaceId }: BoardListProps) {
 
     return (
         <Box>
-            <Button
-                variant="contained"
-                onClick={() => setIsCreatingBoard(true)}
-                sx={{ marginBottom: '1em' }}
-            >
-                Add Board
-            </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1em' }}>
+                <Button
+                    variant="contained"
+                    onClick={() => setIsCreatingBoard(true)}
+                >
+                    Add Board
+                </Button>
+            </Box>
 
-            {isCreatingBoard && (
-                <Box sx={{ marginBottom: '1em', display: 'flex', gap: '0.5em' }}>
-                    <TextField
-                        autoFocus
-                        size="small"
-                        placeholder="Board title"
-                        value={boardTitle}
-                        onChange={(e) => setBoardTitle(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                    />
-                    <Button variant="contained" size="small" onClick={handleCreateBoard}>
-                        Save
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() => {
-                            setBoardTitle('');
-                            setIsCreatingBoard(false);
-                        }}
-                    >
-                        Cancel
-                    </Button>
-                </Box>
-            )}
 
             <Box sx={{ display: 'flex', gap: '1.5em', overflowX: 'auto', paddingBottom: '2em', alignItems: 'flex-start' }}>
                 {boards.map((board) => (
@@ -429,7 +408,7 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                             minWidth: '300px',
                             maxWidth: '300px',
                             padding: '1em',
-                            backgroundColor: '#f5f5f5',
+                            backgroundColor: board.color || '#f5f5f5',
                             display: 'flex',
                             flexDirection: 'column',
                             position: 'relative',
@@ -605,6 +584,71 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                         variant="contained"
                     >
                         Delete Board
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={isCreatingBoard}
+                onClose={() => {
+                    setBoardTitle('');
+                    setBoardColor('#f5f5f5');
+                    setIsCreatingBoard(false);
+                }}
+            >
+                <DialogTitle>Create New Board</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        fullWidth
+                        placeholder="Board title"
+                        value={boardTitle}
+                        onChange={(e) => setBoardTitle(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                    />
+                    <Box sx={{ marginTop: '1em' }}>
+                        <DialogContentText sx={{ marginBottom: '0.5em', fontSize: '0.9em' }}>
+                            Board Color
+                        </DialogContentText>
+                        <Box sx={{ display: 'flex', gap: '0.5em', flexWrap: 'wrap' }}>
+                            {['#f5f5f5', '#ffebee', '#e3f2fd', '#e8f5e9', '#fff3e0', '#f3e5f5', '#fce4ec', '#e0f2f1'].map((color) => (
+                                <Box
+                                    key={color}
+                                    onClick={() => setBoardColor(color)}
+                                    sx={{
+                                        width: '40px',
+                                        height: '40px',
+                                        backgroundColor: color,
+                                        border: boardColor === color ? '3px solid #1976d2' : '2px solid #ccc',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        '&:hover': {
+                                            transform: 'scale(1.1)',
+                                            boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                                        }
+                                    }}
+                                />
+                            ))}
+                        </Box>
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button
+                        onClick={() => {
+                            setBoardTitle('');
+                            setBoardColor('#f5f5f5');
+                            setIsCreatingBoard(false);
+                        }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleCreateBoard}
+                        variant="contained"
+                    >
+                        Create
                     </Button>
                 </DialogActions>
             </Dialog>

@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
-import { Paper, TextField, Box, IconButton } from '@mui/material';
+import { Paper, TextField, Box, IconButton, Popover, Button } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs, { Dayjs } from 'dayjs';
 import type { Card, CardStatus } from '../models/Card';
 
 interface CardItemProps {
     card: Card;
     onDragStart: (cardId: string) => void;
-    onUpdate: (cardId: string, title: string, details: string, status: CardStatus, customStatuses?: string[], isMinimized?: boolean) => void;
+    onUpdate: (cardId: string, title: string, details: string, status: CardStatus, customStatuses?: string[], isMinimized?: boolean, dueDate?: Date | null) => void;
     onDropOnCard: (draggedCardId: string, targetCardId: string) => void;
     onDelete: (cardId: string) => void;
     depth?: number;
@@ -25,6 +28,8 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
     const [isAddingCustomStatus, setIsAddingCustomStatus] = useState(false);
     const [newCustomStatus, setNewCustomStatus] = useState('');
     const [isDetailsMinimized, setIsDetailsMinimized] = useState(card.isMinimized ?? true);
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    const [datePickerAnchorEl, setDatePickerAnchorEl] = useState<HTMLElement | null>(null);
     const statusDropdownRef = useRef<HTMLDivElement>(null);
     const detailsRef = useRef<HTMLDivElement>(null);
     const customStatusInputRef = useRef<HTMLInputElement>(null);
@@ -102,18 +107,18 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
 
     const handleTitleSave = () => {
         if (editTitle.trim()) {
-            onUpdate(card.id, editTitle, card.details, card.status, card.customStatuses, isDetailsMinimized);
+            onUpdate(card.id, editTitle, card.details, card.status, card.customStatuses, isDetailsMinimized, card.dueDate);
             setIsEditingTitle(false);
         }
     };
 
     const handleDetailsSave = () => {
-        onUpdate(card.id, card.title, editDetails, card.status, card.customStatuses, isDetailsMinimized);
+        onUpdate(card.id, card.title, editDetails, card.status, card.customStatuses, isDetailsMinimized, card.dueDate);
         setIsEditingDetails(false);
     };
 
     const handleStatusChange = (newStatus: CardStatus) => {
-        onUpdate(card.id, card.title, card.details, newStatus, card.customStatuses, isDetailsMinimized);
+        onUpdate(card.id, card.title, card.details, newStatus, card.customStatuses, isDetailsMinimized, card.dueDate);
         setIsStatusDropdownOpen(false);
     };
 
@@ -121,7 +126,7 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
         const trimmedStatus = newCustomStatus.trim();
         if (trimmedStatus && (!card.customStatuses || card.customStatuses.length < 5)) {
             const updatedCustomStatuses = [...(card.customStatuses || []), trimmedStatus];
-            onUpdate(card.id, card.title, card.details, card.status, updatedCustomStatuses, isDetailsMinimized);
+            onUpdate(card.id, card.title, card.details, card.status, updatedCustomStatuses, isDetailsMinimized, card.dueDate);
             setNewCustomStatus('');
             setIsAddingCustomStatus(false);
         }
@@ -130,7 +135,7 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
     const handleRemoveCustomStatus = (index: number) => {
         const updatedCustomStatuses = [...(card.customStatuses || [])];
         updatedCustomStatuses.splice(index, 1);
-        onUpdate(card.id, card.title, card.details, card.status, updatedCustomStatuses, isDetailsMinimized);
+        onUpdate(card.id, card.title, card.details, card.status, updatedCustomStatuses, isDetailsMinimized, card.dueDate);
     };
 
     const handleCustomStatusKeyDown = (e: React.KeyboardEvent) => {
@@ -210,7 +215,30 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
         e.stopPropagation();
         const newMinimizedState = !isDetailsMinimized;
         setIsDetailsMinimized(newMinimizedState);
-        onUpdate(card.id, card.title, card.details, card.status, card.customStatuses, newMinimizedState);
+        onUpdate(card.id, card.title, card.details, card.status, card.customStatuses, newMinimizedState, card.dueDate);
+    };
+
+    const handleDateIconClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        e.stopPropagation();
+        setDatePickerAnchorEl(e.currentTarget);
+        setIsDatePickerOpen(true);
+    };
+
+    const handleDatePickerClose = () => {
+        setIsDatePickerOpen(false);
+        setDatePickerAnchorEl(null);
+    };
+
+    const handleDateChange = (newValue: Dayjs | null) => {
+        const newDate = newValue ? newValue.toDate() : null;
+        onUpdate(card.id, card.title, card.details, card.status, card.customStatuses, isDetailsMinimized, newDate);
+        handleDatePickerClose();
+    };
+
+    const handleClearDate = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onUpdate(card.id, card.title, card.details, card.status, card.customStatuses, isDetailsMinimized, null);
+        handleDatePickerClose();
     };
 
     return (
@@ -410,6 +438,50 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
             </Box>
 
             <Box sx={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
+                {/* Due Date Picker */}
+                <Box
+                    onClick={handleDateIconClick}
+                    sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        backgroundColor: card.dueDate ? '#e3f2fd' : 'transparent',
+                        color: card.dueDate ? '#1976d2' : '#999',
+                        fontSize: '0.7em',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s',
+                        '&:hover': {
+                            backgroundColor: card.dueDate ? '#bbdefb' : '#f5f5f5',
+                        }
+                    }}
+                >
+                    <CalendarTodayIcon sx={{ fontSize: '1em' }} />
+                    {card.dueDate && <span>{dayjs(card.dueDate).format('MMM D')}</span>}
+                </Box>
+
+                <Popover
+                    open={isDatePickerOpen}
+                    anchorEl={datePickerAnchorEl}
+                    onClose={handleDatePickerClose}
+                    anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+                    transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                >
+                    <Box sx={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <DatePicker
+                            value={card.dueDate ? dayjs(card.dueDate) : null}
+                            onChange={handleDateChange}
+                            slotProps={{ textField: { size: 'small' } }}
+                        />
+                        {card.dueDate && (
+                            <Button size="small" variant="outlined" color="error" onClick={handleClearDate} fullWidth>
+                                Clear Date
+                            </Button>
+                        )}
+                    </Box>
+                </Popover>
+
                 {/* Custom Status Pills */}
                 {card.customStatuses && card.customStatuses.map((customStatus, index) => (
                     <Box

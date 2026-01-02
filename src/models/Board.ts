@@ -4,4 +4,5 @@ export interface Board{
     title : string;
     description : string;
     order : number;
+    color?: string;
 }
