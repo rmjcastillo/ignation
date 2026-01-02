@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Button, TextField, Box, Paper } from '@mui/material';
+import { Button, TextField, Box, Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
 import type { Board } from '../models/Board';
 import type { Card } from '../models/Card';
 import CardItem from './CardItem';
@@ -20,6 +20,8 @@ export default function BoardList({ workspaceId }: BoardListProps) {
     const [cardTitle, setCardTitle] = useState('');
     const [cardDetails, setCardDetails] = useState('');
     const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [cardToDelete, setCardToDelete] = useState<string | null>(null);
     const currentWorkspaceRef = useRef(workspaceId);
     const isLoadingRef = useRef(false);
 
@@ -126,6 +128,58 @@ export default function BoardList({ workspaceId }: BoardListProps) {
         ));
     };
 
+    const getAllDescendants = (cardId: string): string[] => {
+        const descendants: string[] = [];
+        const children = cards.filter(card => card.parentId === cardId);
+
+        children.forEach(child => {
+            descendants.push(child.id);
+            descendants.push(...getAllDescendants(child.id));
+        });
+
+        return descendants;
+    };
+
+    const handleDeleteCard = (cardId: string) => {
+        const descendants = getAllDescendants(cardId);
+
+        if (descendants.length > 0) {
+            setCardToDelete(cardId);
+            setDeleteConfirmOpen(true);
+        } else {
+            confirmDelete(cardId);
+        }
+    };
+
+    const confirmDelete = (cardId: string) => {
+        const descendants = getAllDescendants(cardId);
+        const idsToDelete = [cardId, ...descendants];
+
+        setCards(cards.filter(card => !idsToDelete.includes(card.id)));
+        setDeleteConfirmOpen(false);
+        setCardToDelete(null);
+    };
+
+    const cancelDelete = () => {
+        setDeleteConfirmOpen(false);
+        setCardToDelete(null);
+    };
+
+    const handleDropOnCard = (draggedCardId: string, targetCardId: string) => {
+        // Prevent dropping a card on its own descendant
+        const descendants = getAllDescendants(draggedCardId);
+        if (descendants.includes(targetCardId)) {
+            return;
+        }
+
+        setCards(cards.map(card =>
+            card.id === draggedCardId
+                ? { ...card, parentId: targetCardId }
+                : card
+        ));
+        setDraggedCardId(null);
+    };
+
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
     };
@@ -133,11 +187,16 @@ export default function BoardList({ workspaceId }: BoardListProps) {
     const handleDrop = (e: React.DragEvent, targetBoardId: string) => {
         e.preventDefault();
         if (draggedCardId) {
-            setCards(cards.map(card =>
-                card.id === draggedCardId
-                    ? { ...card, boardId: targetBoardId }
-                    : card
-            ));
+            const descendantIds = getAllDescendants(draggedCardId);
+
+            setCards(cards.map(card => {
+                if (card.id === draggedCardId) {
+                    return { ...card, boardId: targetBoardId, parentId: null };
+                } else if (descendantIds.includes(card.id)) {
+                    return { ...card, boardId: targetBoardId };
+                }
+                return card;
+            }));
             setDraggedCardId(null);
         }
     };
@@ -163,7 +222,32 @@ export default function BoardList({ workspaceId }: BoardListProps) {
     };
 
     const getCardsForBoard = (boardId: string) => {
-        return cards.filter(card => card.boardId === boardId);
+        return cards.filter(card => card.boardId === boardId && !card.parentId);
+    };
+
+    const getChildCards = (parentId: string) => {
+        return cards.filter(card => card.parentId === parentId);
+    };
+
+    const renderCardWithChildren = (card: Card, depth: number = 0) => {
+        const children = getChildCards(card.id);
+        const elements = [
+            <CardItem
+                key={card.id}
+                card={card}
+                onDragStart={handleDragStart}
+                onUpdate={handleUpdateCard}
+                onDropOnCard={handleDropOnCard}
+                onDelete={handleDeleteCard}
+                depth={depth}
+            />
+        ];
+
+        children.forEach(child => {
+            elements.push(...renderCardWithChildren(child, depth + 1));
+        });
+
+        return elements;
     };
 
     return (
@@ -219,14 +303,9 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                         <h3 style={{ margin: '0 0 1em 0' }}>{board.title}</h3>
 
                         <Box sx={{ marginBottom: '1em' }}>
-                            {getCardsForBoard(board.id).map((card) => (
-                                <CardItem
-                                    key={card.id}
-                                    card={card}
-                                    onDragStart={handleDragStart}
-                                    onUpdate={handleUpdateCard}
-                                />
-                            ))}
+                            {getCardsForBoard(board.id).flatMap((card) =>
+                                renderCardWithChildren(card, 0)
+                            )}
                         </Box>
 
                         {creatingCardForBoard === board.id ? (
@@ -287,6 +366,29 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                     </Paper>
                 ))}
             </Box>
+
+            <Dialog
+                open={deleteConfirmOpen}
+                onClose={cancelDelete}
+            >
+                <DialogTitle>Delete Card with Children?</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        This card has {cardToDelete ? getAllDescendants(cardToDelete).length : 0} child card(s).
+                        Deleting this card will also delete all its children. Are you sure you want to continue?
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={cancelDelete}>Cancel</Button>
+                    <Button
+                        onClick={() => cardToDelete && confirmDelete(cardToDelete)}
+                        color="error"
+                        variant="contained"
+                    >
+                        Delete All
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }

@@ -1,18 +1,24 @@
 import { useState } from 'react';
-import { Paper, TextField, Box } from '@mui/material';
+import { Paper, TextField, Box, IconButton } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import type { Card } from '../models/Card';
 
 interface CardItemProps {
     card: Card;
     onDragStart: (cardId: string) => void;
     onUpdate: (cardId: string, title: string, details: string) => void;
+    onDropOnCard: (draggedCardId: string, targetCardId: string) => void;
+    onDelete: (cardId: string) => void;
+    depth?: number;
 }
 
-export default function CardItem({ card, onDragStart, onUpdate }: CardItemProps) {
+export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, onDelete, depth = 0 }: CardItemProps) {
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [isEditingDetails, setIsEditingDetails] = useState(false);
     const [editTitle, setEditTitle] = useState(card.title);
     const [editDetails, setEditDetails] = useState(card.details);
+    const [isDragOver, setIsDragOver] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
 
     const handleTitleClick = () => {
         setIsEditingTitle(true);
@@ -56,15 +62,57 @@ export default function CardItem({ card, onDragStart, onUpdate }: CardItemProps)
         }
     };
 
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+
+        const draggedCardId = e.dataTransfer.getData('cardId');
+        if (draggedCardId && draggedCardId !== card.id) {
+            onDropOnCard(draggedCardId, card.id);
+        }
+    };
+
+    const handleDragStartInternal = (e: React.DragEvent) => {
+        e.dataTransfer.setData('cardId', card.id);
+        onDragStart(card.id);
+    };
+
+    const handleDelete = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onDelete(card.id);
+    };
+
     return (
         <Paper
             draggable={!isEditingTitle && !isEditingDetails}
-            onDragStart={() => onDragStart(card.id)}
+            onDragStart={handleDragStartInternal}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             sx={{
                 padding: '0.75em',
                 marginBottom: '0.75em',
+                marginLeft: `${depth * 1.5}em`,
                 backgroundColor: 'white',
                 cursor: isEditingTitle || isEditingDetails ? 'default' : 'grab',
+                border: isDragOver ? '2px solid #1976d2' : '1px solid transparent',
+                transition: 'border 0.2s',
+                position: 'relative',
                 '&:active': {
                     cursor: isEditingTitle || isEditingDetails ? 'default' : 'grabbing'
                 },
@@ -73,6 +121,26 @@ export default function CardItem({ card, onDragStart, onUpdate }: CardItemProps)
                 }
             }}
         >
+            {isHovered && !isEditingTitle && !isEditingDetails && (
+                <IconButton
+                    onClick={handleDelete}
+                    size="small"
+                    sx={{
+                        position: 'absolute',
+                        top: '4px',
+                        right: '4px',
+                        padding: '4px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        '&:hover': {
+                            backgroundColor: '#ffebee',
+                            color: '#d32f2f'
+                        }
+                    }}
+                >
+                    <CloseIcon fontSize="small" />
+                </IconButton>
+            )}
+
             <Box sx={{ marginBottom: card.details ? '0.5em' : 0 }}>
                 {isEditingTitle ? (
                     <TextField
