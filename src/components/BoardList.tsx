@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Button, TextField, Box, Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
+import { Button, TextField, Box, Paper, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, IconButton } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import type { Board } from '../models/Board';
 import type { Card } from '../models/Card';
 import CardItem from './CardItem';
@@ -22,6 +23,9 @@ export default function BoardList({ workspaceId }: BoardListProps) {
     const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [cardToDelete, setCardToDelete] = useState<string | null>(null);
+    const [deleteBoardConfirmOpen, setDeleteBoardConfirmOpen] = useState(false);
+    const [boardToDelete, setBoardToDelete] = useState<string | null>(null);
+    const [hoveredBoardId, setHoveredBoardId] = useState<string | null>(null);
     const currentWorkspaceRef = useRef(workspaceId);
     const isLoadingRef = useRef(false);
 
@@ -165,6 +169,29 @@ export default function BoardList({ workspaceId }: BoardListProps) {
         setCardToDelete(null);
     };
 
+    const handleDeleteBoard = (boardId: string) => {
+        const boardCards = cards.filter(card => card.boardId === boardId);
+
+        if (boardCards.length > 0) {
+            setBoardToDelete(boardId);
+            setDeleteBoardConfirmOpen(true);
+        } else {
+            confirmDeleteBoard(boardId);
+        }
+    };
+
+    const confirmDeleteBoard = (boardId: string) => {
+        setBoards(boards.filter(board => board.id !== boardId));
+        setCards(cards.filter(card => card.boardId !== boardId));
+        setDeleteBoardConfirmOpen(false);
+        setBoardToDelete(null);
+    };
+
+    const cancelDeleteBoard = () => {
+        setDeleteBoardConfirmOpen(false);
+        setBoardToDelete(null);
+    };
+
     const handleDropOnCard = (draggedCardId: string, targetCardId: string) => {
         // Prevent dropping a card on its own descendant
         const descendants = getAllDescendants(draggedCardId);
@@ -292,15 +319,41 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                         key={board.id}
                         onDragOver={handleDragOver}
                         onDrop={(e) => handleDrop(e, board.id)}
+                        onMouseEnter={() => setHoveredBoardId(board.id)}
+                        onMouseLeave={() => setHoveredBoardId(null)}
                         sx={{
                             minWidth: '300px',
                             maxWidth: '300px',
                             padding: '1em',
                             backgroundColor: '#f5f5f5',
-                            minHeight: '400px'
+                            minHeight: '400px',
+                            position: 'relative'
                         }}
                     >
-                        <h3 style={{ margin: '0 0 1em 0' }}>{board.title}</h3>
+                        <Box sx={{ position: 'relative', marginBottom: '1em' }}>
+                            <h3 style={{ margin: 0, paddingRight: hoveredBoardId === board.id ? '32px' : '0' }}>
+                                {board.title}
+                            </h3>
+                            {hoveredBoardId === board.id && (
+                                <IconButton
+                                    onClick={() => handleDeleteBoard(board.id)}
+                                    size="small"
+                                    sx={{
+                                        position: 'absolute',
+                                        top: '-4px',
+                                        right: '-4px',
+                                        padding: '4px',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                        '&:hover': {
+                                            backgroundColor: '#ffebee',
+                                            color: '#d32f2f'
+                                        }
+                                    }}
+                                >
+                                    <CloseIcon fontSize="small" />
+                                </IconButton>
+                            )}
+                        </Box>
 
                         <Box sx={{ marginBottom: '1em' }}>
                             {getCardsForBoard(board.id).flatMap((card) =>
@@ -386,6 +439,29 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                         variant="contained"
                     >
                         Delete All
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={deleteBoardConfirmOpen}
+                onClose={cancelDeleteBoard}
+            >
+                <DialogTitle>Delete Board with All Cards?</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        This board contains {boardToDelete ? cards.filter(card => card.boardId === boardToDelete).length : 0} card(s).
+                        Deleting this board will permanently delete all cards in it. Are you sure you want to continue?
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={cancelDeleteBoard}>Cancel</Button>
+                    <Button
+                        onClick={() => boardToDelete && confirmDeleteBoard(boardToDelete)}
+                        color="error"
+                        variant="contained"
+                    >
+                        Delete Board
                     </Button>
                 </DialogActions>
             </Dialog>
