@@ -13,7 +13,13 @@ interface BoardListProps {
 }
 
 export default function BoardList({ workspaceId }: BoardListProps) {
-    const [boards, setBoards] = useState<Board[]>([]);
+    const [boards, setBoards] = useState<Board[]>(() => {
+        const saved = localStorage.getItem(BOARDS_STORAGE_KEY);
+        const allBoards = saved ? JSON.parse(saved) : [];
+        return allBoards
+            .filter((board: Board) => board.workspaceId === workspaceId.toString())
+            .sort((a: Board, b: Board) => a.order - b.order);
+    });
     const [cards, setCards] = useState<Card[]>([]);
     const [isCreatingBoard, setIsCreatingBoard] = useState(false);
     const [boardTitle, setBoardTitle] = useState('');
@@ -60,7 +66,9 @@ export default function BoardList({ workspaceId }: BoardListProps) {
 
         const savedBoards = localStorage.getItem(BOARDS_STORAGE_KEY);
         const allBoards = savedBoards ? JSON.parse(savedBoards) : [];
-        const workspaceBoards = allBoards.filter((board: Board) => board.workspaceId === workspaceId.toString());
+        const workspaceBoards = allBoards
+            .filter((board: Board) => board.workspaceId === workspaceId.toString())
+            .sort((a: Board, b: Board) => a.order - b.order);
 
         const savedCards = localStorage.getItem(CARDS_STORAGE_KEY);
         const allCards = savedCards ? JSON.parse(savedCards) : [];
@@ -238,16 +246,22 @@ export default function BoardList({ workspaceId }: BoardListProps) {
     };
 
     const handleBoardDragOver = (e: React.DragEvent, boardId: string) => {
-        e.preventDefault();
+        // Only show board drop indicator if we're dragging a board
         if (draggedBoardId && draggedBoardId !== boardId) {
+            e.preventDefault();
             setDragOverBoardId(boardId);
         }
     };
 
     const handleBoardDrop = (e: React.DragEvent, targetBoardId: string) => {
+        // Only process if we're actually dragging a board (not a card)
+        if (!draggedBoardId) {
+            return;
+        }
+
         e.preventDefault();
 
-        if (!draggedBoardId || draggedBoardId === targetBoardId) {
+        if (draggedBoardId === targetBoardId) {
             setDragOverBoardId(null);
             return;
         }

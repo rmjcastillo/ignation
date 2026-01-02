@@ -86,6 +86,7 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
     };
 
     const handleDragStartInternal = (e: React.DragEvent) => {
+        e.stopPropagation();
         e.dataTransfer.setData('cardId', card.id);
         onDragStart(card.id);
     };
