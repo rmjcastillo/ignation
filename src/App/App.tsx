@@ -26,6 +26,8 @@ export default function App(){
     const [hoveredWorkspaceId, setHoveredWorkspaceId] = useState<number | null>(null);
     const [deleteWorkspaceConfirmOpen, setDeleteWorkspaceConfirmOpen] = useState(false);
     const [workspaceToDelete, setWorkspaceToDelete] = useState<number | null>(null);
+    const [isEditingPlaygroundTitle, setIsEditingPlaygroundTitle] = useState(false);
+    const [playgroundTitleValue, setPlaygroundTitleValue] = useState('');
 
     useEffect(() => {
         localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces));
@@ -161,6 +163,41 @@ export default function App(){
     const cancelDeleteWorkspace = () => {
         setDeleteWorkspaceConfirmOpen(false);
         setWorkspaceToDelete(null);
+    };
+
+    const handlePlaygroundTitleClick = () => {
+        if (selectedWorkspace) {
+            setIsEditingPlaygroundTitle(true);
+            setPlaygroundTitleValue(selectedWorkspace.name);
+        }
+    };
+
+    const handleSavePlaygroundTitle = () => {
+        if (playgroundTitleValue.trim() && selectedWorkspace) {
+            const updatedWorkspaces = workspaces.map(ws =>
+                ws.id === selectedWorkspace.id
+                    ? { ...ws, name: playgroundTitleValue }
+                    : ws
+            );
+            setworkspaces(updatedWorkspaces);
+            setSelectedWorkspace({ ...selectedWorkspace, name: playgroundTitleValue });
+            setIsEditingPlaygroundTitle(false);
+            setPlaygroundTitleValue('');
+        }
+    };
+
+    const handleCancelPlaygroundTitleEdit = () => {
+        setIsEditingPlaygroundTitle(false);
+        setPlaygroundTitleValue('');
+    };
+
+    const handlePlaygroundTitleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSavePlaygroundTitle();
+        } else if (e.key === 'Escape') {
+            handleCancelPlaygroundTitleEdit();
+        }
     };
 
     return <>
@@ -303,9 +340,40 @@ export default function App(){
             {selectedWorkspace && (
                 <div style={{ padding: '2em' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1em' }}>
-                        <h2 style={{ margin: '0', color: '#333' }}>
-                            {selectedWorkspace.name}
-                        </h2>
+                        {isEditingPlaygroundTitle ? (
+                            <TextField
+                                autoFocus
+                                size="small"
+                                value={playgroundTitleValue}
+                                onChange={(e) => setPlaygroundTitleValue(e.target.value)}
+                                onBlur={handleSavePlaygroundTitle}
+                                onKeyDown={handlePlaygroundTitleKeyDown}
+                                sx={{
+                                    '& .MuiInputBase-input': {
+                                        fontSize: '1.5em',
+                                        fontWeight: 'bold',
+                                        color: '#333',
+                                        padding: '4px 8px'
+                                    }
+                                }}
+                            />
+                        ) : (
+                            <h2
+                                style={{
+                                    margin: '0',
+                                    color: '#333',
+                                    cursor: 'pointer',
+                                    padding: '4px 8px',
+                                    borderRadius: '4px',
+                                    transition: 'background-color 0.2s'
+                                }}
+                                onClick={handlePlaygroundTitleClick}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                                {selectedWorkspace.name}
+                            </h2>
+                        )}
                         <Button
                             variant="contained"
                             onClick={() => boardListRef.current?.openCreateBoardDialog()}
