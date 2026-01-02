@@ -407,7 +407,7 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                 </Box>
             )}
 
-            <Box sx={{ display: 'flex', gap: '1.5em', overflowX: 'auto', paddingBottom: '2em' }}>
+            <Box sx={{ display: 'flex', gap: '1.5em', overflowX: 'auto', paddingBottom: '2em', alignItems: 'flex-start' }}>
                 {boards.map((board) => (
                     <Paper
                         key={board.id}
@@ -429,7 +429,8 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                             maxWidth: '300px',
                             padding: '1em',
                             backgroundColor: '#f5f5f5',
-                            minHeight: '400px',
+                            display: 'flex',
+                            flexDirection: 'column',
                             position: 'relative',
                             cursor: editingBoardId ? 'default' : 'move',
                             opacity: draggedBoardId === board.id ? 0.5 : 1,
@@ -496,14 +497,14 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                             )}
                         </Box>
 
-                        <Box sx={{ marginBottom: '1em' }}>
+                        <Box sx={{ marginBottom: '1em', flex: '1 1 auto' }}>
                             {getCardsForBoard(board.id).flatMap((card) =>
                                 renderCardWithChildren(card, 0)
                             )}
                         </Box>
 
                         {creatingCardForBoard === board.id ? (
-                            <Box sx={{ marginTop: '1em' }}>
+                            <Box sx={{ marginTop: '1em', flex: '0 0 auto' }}>
                                 <TextField
                                     autoFocus
                                     fullWidth
@@ -552,7 +553,7 @@ export default function BoardList({ workspaceId }: BoardListProps) {
                                 variant="outlined"
                                 size="small"
                                 onClick={() => setCreatingCardForBoard(board.id)}
-                                sx={{ marginTop: '1em' }}
+                                sx={{ marginTop: '1em', flex: '0 0 auto' }}
                             >
                                 + Add Card
                             </Button>
