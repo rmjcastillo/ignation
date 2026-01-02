@@ -338,7 +338,7 @@ export default function CardItem({ card, onDragStart, onUpdate, onDropOnCard, on
                                     fullWidth
                                     size="small"
                                     multiline
-                                    rows={2}
+                                    rows={4}
                                     value={editDetails}
                                     onChange={(e) => setEditDetails(e.target.value)}
                                     onBlur={handleDetailsSave}
